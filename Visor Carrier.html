@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+<link rel="icon" type="image/png" href="Imagenes/logo.png">
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta charset="utf-8">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0ea5e9">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visor CARRIER · Tabla de Cables</title>
+<style>
+:root{
+  --bg:#f6f7fb;--card:#ffffff;--ink:#263238;--muted:#607d8b;--line:#e0e6ef;--pri:#0f172a;--chip:#eef2ff;
+}
+*{box-sizing:border-box}
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+  });
+}
+body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink)}
+.wrap{max-width:1280px;margin:0 auto;padding:12px}
+.header{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
+.hleft{display:flex;gap:8px;align-items:center}
+h1{font-size:18px;margin:0;color:var(--pri)}
+.sel, input[type=text]{height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;min-width:220px;outline:none}
+button{height:40px;padding:8px 14px;border:0;border-radius:10px;background:#0ea5e9;color:#fff;cursor:pointer}
+button:active{transform:translateY(1px)}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:980px){.grid{grid-template-columns: 1fr 1fr 380px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-height:160px}
+.card h3{margin:0 0 6px 0;font-size:15px;color:var(--pri)}
+.preview{border:1px dashed var(--line);border-radius:12px;height:220px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:#fafbff}
+.links{display:flex;gap:12px;margin-top:6px}
+.links a{color:#2563eb;text-decoration:none;font-weight:600}
+.tableWrap{grid-column:1/-1}
+.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:center;vertical-align:middle;white-space:normal;word-wrap:break-word;overflow:hidden;text-overflow:ellipsis}
+.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.badge{background:var(--chip);border:1px solid #dbe1ff;border-radius:999px;padding:3px 8px;font-size:12px;color:#3730a3}
+.icon{width:34px;height:34px;object-fit:contain;display:block;margin:0 auto;max-height:26px}
+small{color:var(--muted)}
+.chipv{display:flex;flex-direction:column;align-items:center;gap:4px}
+.sap{font-size:12px;color:var(--muted);line-height:1}
+
+/* Buscador componentes */
+.searchCard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.searchHead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.comp-input{flex:1 1 260px;min-width:240px;height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+.comp-btn{height:40px;padding:8px 14px;border:0;border-radius:10px;background:#0ea5e9;color:#fff;cursor:pointer}
+.comp-btn:active{transform:translateY(1px)}
+.comp-tag{font-size:12px;color:#334155;background:#eef2ff;border:1px solid #dbe1ff;border-radius:999px;padding:4px 8px}
+.compTbl{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
+.compTbl th,.compTbl td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:center}
+.compTbl th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+
+/* Totales */
+.totalsCard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:14px}
+.muted{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="hleft">
+      <img src="Imagenes/logo.png" alt="Logo" style="height:40px;vertical-align:middle;margin-right:10px;">
+      <h1>Visor CARRIER · <span class="badge">Tabla de Cables</span></h1>
+    </div>
+    <div class="hleft">
+      <select id="npSel" class="sel"></select>
+      <input id="npTxt" type="text" placeholder="…o escribe el NP y Enter">
+      <button id="showBtn">Mostrar</button>
+    </div>
+  </div>
+
+  <!-- Buscador de componentes (Terminales & Conectores) -->
+  <div class="searchCard">
+    <div class="searchHead">
+      <div style="font-weight:700">Buscar COMPONENTE</div>
+      <span class="comp-tag">(Terminales & Conectores)</span>
+      <input id="compTxt" class="comp-input" type="text" placeholder="Escribe SAP, No. Fabricante o No. Cliente/Proveedor y Enter…">
+      <button id="compBtn" class="comp-btn">Buscar</button>
+    </div>
+    <table class="compTbl">
+      <thead>
+        <tr>
+          <th style="width:140px">Tipo</th>
+          <th>Cliente</th>
+          <th>Fabricante</th>
+          <th style="width:160px">SAP</th>
+          <th style="width:120px">Imagen</th>
+        </tr>
+      </thead>
+      <tbody id="compTBody"></tbody>
+    </table>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Plano</h3>
+      <div class="links"><a id="plPdf" target="_blank">Abrir PDF</a><a id="plImg" target="_blank">Abrir Imagen</a></div>
+      <div id="pPrev" class="preview"><small>Vista previa no disponible</small></div>
+    </div>
+    <div class="card">
+      <h3>Ayuda Visual</h3>
+      <div class="links"><a id="ayPdf" target="_blank">Abrir PDF</a><a id="ayImg" target="_blank">Abrir Imagen</a></div>
+      <div id="aPrev" class="preview"><small>Vista previa no disponible</small></div>
+    </div>
+    <div class="card">
+      <h3>NP · Revisión</h3>
+      <div id="npInfo"></div>
+    </div>
+
+    <div class="card tableWrap">
+      <h3>Cables</h3>
+      <table class="tbl" id="cablesTbl">
+        <thead>
+          <tr>
+            <th>Ítem plano</th>
+            <th>Consecutivo</th>
+            <th>Número de parte</th>
+            <th>Revisión</th>
+            <th>Color<br><small>SAP del cable</small></th>
+            <th>Calibre AWG</th>
+            <th>Longitud total (pul)</th>
+            <th>Longitud total (m)</th>
+            <th>Estampado A</th>
+            <th>Terminal A</th>
+            <th>Conector A</th>
+            <th>Estampado B</th>
+            <th>Terminal B</th>
+            <th>Conector B</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Totales por NP -->
+  <div class="totalsCard">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap">
+      <h3 style="margin:0">
+        Totales de Componentes (por NP)
+        <small id="totNP" class="muted" style="margin-left:.5rem"></small>
+      </h3>
+      <div class="muted">Fuente: <span id="totalsSrc">–</span></div>
+    </div>
+    <table class="compTbl">
+      <thead>
+        <tr>
+          <th style="width:140px">Tipo</th>
+          <th style="width:160px">SAP</th>
+          <th style="width:120px">Cantidad</th>
+          <th style="width:120px">Imagen</th>
+        </tr>
+      </thead>
+      <tbody id="totalsTBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Orden recomendado: configuración y datos primero -->
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="components_index.js"></script>
+<!-- Asegúrate de que este archivo exista: generado por tu macro con llaves NP|REV -->
+<script src="matrix_totals.js"></script>
+
+<script>
+function $(sel){ return document.querySelector(sel); }
+function byId(id){ return document.getElementById(id); }
+
+/* ===== Imágenes para celdas ===== */
+function imgTag(pn, dir){
+  if(!pn) return '';
+  const bases = [(window.CONFIG && CONFIG.imgBase) ? CONFIG.imgBase : 'Imagenes','./Imagenes','../Imagenes'];
+  const exts = ['.jpg','.png','.jpeg'];
+  const first = `${bases[0]}/${dir}/${pn}${exts[0]}`;
+  return `<img class="icon" data-pn="${pn}" data-dir="${dir}" data-bases='${JSON.stringify(bases)}' data-exts='${JSON.stringify(exts)}' data-idx-base="0" data-idx-ext="0" src="${first}" onerror="tryNext(this)" alt="${pn}">`;
+}
+function tryNext(img){
+  let bases=[], exts=[];
+  try{bases=JSON.parse(img.getAttribute('data-bases')||'[]');}catch(e){}
+  try{exts=JSON.parse(img.getAttribute('data-exts')||'[]');}catch(e){}
+  const pn=img.getAttribute('data-pn'),dir=img.getAttribute('data-dir');
+  let iBase=parseInt(img.getAttribute('data-idx-base')||'0',10);
+  let iExt=parseInt(img.getAttribute('data-idx-ext')||'0',10);
+  iExt++;
+  if(iExt>=exts.length){iExt=0;iBase++;}
+  if(iBase<bases.length){
+    const next=`${bases[iBase]}/${dir}/${pn}${exts[iExt]}`;
+    img.setAttribute('data-idx-base',iBase);
+    img.setAttribute('data-idx-ext',iExt);
+    img.src=next;
+  }else img.style.display='none';
+}
+function partCell(pn, dir){
+  if(!pn) return '';
+  return `<div class="chipv">${imgTag(pn,dir)}<div class="sap">${pn}</div></div>`;
+}
+
+/* ===== Helpers ===== */
+function mapPlanoPath(p){return p?p.replace(/^Planos\//i,'Carrier Planos 2021/') : p;}
+function fmtPul(v){if(v!=null&&v!==''){var n=Number(v);if(!isNaN(n))return n.toFixed(2).replace(/\.00$/,'');}return ''}
+function fmtM(v){if(v!=null&&v!==''){var n=Number(v);if(!isNaN(n))return n.toFixed(3).replace(/\.000$/,'');}return ''}
+
+/* ===== NP y tabla de cables ===== */
+const data=(window.PROD_DATA&&window.PROD_DATA.partes)?window.PROD_DATA.partes:[];
+const npSel=byId('npSel'),npTxt=byId('npTxt'),showBtn=byId('showBtn');
+const pPrev=byId('pPrev'),aPrev=byId('aPrev');
+const plPdf=byId('plPdf'),plImg=byId('plImg'),ayPdf=byId('ayPdf'),ayImg=byId('ayImg');
+const npInfo=byId('npInfo'),tBody=byId('cablesTbl').getElementsByTagName('tbody')[0];
+const totalsTBody = byId('totalsTBody');
+const totalsSrc   = byId('totalsSrc');
+
+data.forEach(p=>{const o=document.createElement('option');o.value=p.np+'|'+(p.rev||'');o.textContent=p.np+' · Rev '+(p.rev||'-');npSel.appendChild(o);});
+
+/* === Helper para matriz: acepta NP|REV y NP === */
+function findMatrixTotals(np, rev) {
+  if (!window.MATRIX_TOTALS) return null;
+  const NP  = (np  || '').toString().trim().toUpperCase();
+  const REV = (rev || '').toString().trim().toUpperCase();
+  const keys = [];
+  if (REV) keys.push(`${NP}|${REV}`);
+  keys.push(NP);
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(MATRIX_TOTALS, k)) {
+      return MATRIX_TOTALS[k];
+    }
+  }
+  return null;
+}
+
+/* === Fallback: contar componentes visibles por NP === */
+function buildTotalsFromCables(part){
+  const acc = new Map(); // key sap -> {tipo,sap,qty}
+  const add = (tipo, sap) => {
+    if(!sap) return;
+    const k = sap;
+    if(!acc.has(k)) acc.set(k,{tipo,sap,qty:0});
+    acc.get(k).qty += 1;
+  };
+  (part.cables||[]).forEach(r=>{
+    add('Terminal',  r.termA?.pn);
+    add('Conector',  r.connA?.pn);
+    add('Terminal',  r.termB?.pn);
+    add('Conector',  r.connB?.pn);
+  });
+  return Array.from(acc.values());
+}
+
+/* === Pintar totales por NP === */
+function renderTotals(part){
+  totalsTBody.innerHTML = '';
+  let rows = findMatrixTotals(part.np, part.rev);
+  let fuente = '';
+
+  if(rows && rows.length){
+    fuente = 'Matriz';
+  }else{
+    rows = buildTotalsFromCables(part);
+    fuente = 'Fallback (desde cables visibles)';
+  }
+  totalsSrc.textContent = fuente;
+
+  if(!rows || !rows.length){
+    totalsTBody.innerHTML = `<tr><td colspan="4">Sin datos de totales.</td></tr>`;
+    return;
+  }
+
+  rows.sort((a,b)=>{
+    const t = (a.tipo||'').localeCompare(b.tipo||'');
+    if(t!==0) return t;
+    return (a.sap||'').localeCompare(b.sap||'');
+  });
+
+  rows.forEach(r=>{
+    const dir = (r.tipo||'').toString().toLowerCase().startsWith('t') ? 'Terminales' : 'Conectores';
+    const img = imgTag(r.sap, dir);
+    totalsTBody.insertAdjacentHTML('beforeend',
+      `<tr>
+        <td>${r.tipo||''}</td>
+        <td>${r.sap||''}</td>
+        <td>${r.qty||0}</td>
+        <td>${img||''}</td>
+      </tr>`);
+  });
+}
+
+function show(part){
+ if(!part)return;
+ npInfo.innerHTML='<div class="badge">'+part.np+'</div> · Rev <b>'+(part.rev||'-')+'</b>';
+
+ /* <<< NUEVO: NP y Rev junto al título de totales */
+ byId('totNP') && (byId('totNP').textContent = `— ${part.np} · Rev ${part.rev || '-'}`);
+
+ safeSetHref(plPdf,mapPlanoPath(part.planoPdf));
+ safeSetHref(plImg,mapPlanoPath(part.planoImg));
+ safeSetHref(ayPdf,part.ayudaPdf);
+ safeSetHref(ayImg,part.ayudaImg);
+
+ pPrev.innerHTML=aPrev.innerHTML='<small>Vista previa no disponible</small>';
+ if(part.planoImg) pPrev.innerHTML='<img src="'+mapPlanoPath(part.planoImg)+'" style="max-width:100%;max-height:100%">';
+ if(part.ayudaImg) aPrev.innerHTML='<img src="'+part.ayudaImg+'" style="max-width:100%;max-height:100%">';
+
+ tBody.innerHTML='';
+ (part.cables||[]).forEach(r=>{
+   const tr=document.createElement('tr');
+   tr.innerHTML='<td>'+(r.item_plano||'')+'</td>'
+    +'<td>'+(r.consecutivo||'')+'</td>'
+    +'<td>'+(part.np||'')+'</td>'
+    +'<td>'+(part.rev||'')+'</td>'
+    +'<td><div>'+(r.color||'')+'</div><small>'+(r.color_sap||'')+'</small></td>'
+    +'<td>'+(r.awg||'')+'</td>'
+    +'<td>'+fmtPul(r.medida?.pul)+'</td>'
+    +'<td>'+fmtM(r.medida?.m||r.medida?.mm)+'</td>'
+    +'<td>'+(r.estA||'')+'</td>'
+    +'<td>'+partCell(r.termA?.pn,'Terminales')+'</td>'
+    +'<td>'+partCell(r.connA?.pn,'Conectores')+'</td>'
+    +'<td>'+(r.estB||'')+'</td>'
+    +'<td>'+partCell(r.termB?.pn,'Terminales')+'</td>'
+    +'<td>'+partCell(r.connB?.pn,'Conectores')+'</td>';
+   tBody.appendChild(tr);
+ });
+
+ // Pintar totales usando matriz (NP|REV) o fallback
+ renderTotals(part);
+}
+
+function safeSetHref(el,p){if(p){el.href=p;el.style.pointerEvents='auto'}else{el.removeAttribute('href');el.style.pointerEvents='none'}}
+
+function findNP(s){
+  s=(s||'').toUpperCase(); if(!s) return null;
+  let e=data.filter(p=>(p.np||'').toUpperCase()===s);
+  if(e.length) return e[0];
+  return data.find(p=>(p.np||'').toUpperCase().includes(s));
+}
+
+npSel.addEventListener('change',()=>{
+  const[np,rev]=npSel.value.split('|');
+  show(data.find(p=>p.np===np&&(p.rev||'')===rev));
+});
+npTxt.addEventListener('keydown',e=>{if(e.key==='Enter'){show(findNP(npTxt.value));}});
+showBtn.addEventListener('click',()=>{show(findNP(npTxt.value)||findNP(npSel.value.split('|')[0]));});
+if(data.length){npSel.selectedIndex=0;const[np,rev]=npSel.value.split('|');show(data.find(p=>p.np===np&&(p.rev||'')===rev));}
+
+/* ===== Buscador de componentes ===== */
+const compTxt = byId('compTxt');
+const compBtn = byId('compBtn');
+const compTBody = byId('compTBody');
+
+function norm(s){ return (s||'').toString().toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function matchesComp(rec, q){
+  const nq = norm(q);
+  return [rec.sap, rec.fabricante, rec.cliente].some(v => norm(v).includes(nq));
+}
+function rowComp(c){
+  const dir = ((c.tipo||'').toString().toLowerCase().startsWith('t')) ? 'Terminales' : 'Conectores';
+  const img = imgTag(c.sap, dir);
+  return `<tr>
+    <td>${c.tipo||''}</td>
+    <td>${c.cliente||''}</td>
+    <td>${c.fabricante||''}</td>
+    <td>${c.sap||''}</td>
+    <td>${img}</td>
+  </tr>`;
+}
+function searchComp(){
+  const qRaw = (compTxt.value||'').trim();
+  compTBody.innerHTML = '';
+  if(!qRaw){ return; }
+
+  const index = (window.COMP_INDEX || []);
+  let results = index.filter(c => matchesComp(c, qRaw));
+
+  if(results.length === 0){
+    compTBody.innerHTML = `<tr><td colspan="5">Sin resultados para <b>${qRaw.toUpperCase()}</b>.</td></tr>`;
+    return;
+  }
+  const nq = norm(qRaw);
+  results.sort((a,b)=>{
+    const ea = [a.sap,a.fabricante,a.cliente].some(v => norm(v) === nq) ? 0 : 1;
+    const eb = [b.sap,b.fabricante,b.cliente].some(v => norm(v) === nq) ? 0 : 1;
+    return ea - eb;
+  });
+
+  results.forEach(c => compTBody.insertAdjacentHTML('beforeend', rowComp(c)));
+}
+compBtn.addEventListener('click', searchComp);
+compTxt.addEventListener('keydown', e => { if(e.key==='Enter') searchComp(); });
+</script>
+</body>
+</html>

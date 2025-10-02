@@ -1,0 +1,45 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Visor CARRIER · DEBUG</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#f7f7fb;margin:0;color:#222}
+.wrap{max-width:1200px;margin:16px auto;padding:12px}
+.alert{padding:10px 12px;border-radius:8px;margin-bottom:12px}
+.alert.err{background:#fff0f3;border:1px solid #ffc2c7;color:#a40012}
+.alert.ok{background:#eefbf1;border:1px solid #b8f0c2;color:#035b26}
+small.mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:#555}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>Visor CARRIER · Comprobación de carga</h2>
+  <div id="msg" class="alert"></div>
+  <p><small class="mono">Este archivo intenta cargar <b>config.js</b> y <b>data.js</b>. Si no existen, mostrará un error claro.</small></p>
+</div>
+
+<script src="config.js" onerror="document.getElementById('msg').outerHTML='<div class=alert err>No se pudo cargar <b>config.js</b>. Ponlo junto a este HTML.</div>'"></script>
+<script src="data.js" onerror="document.getElementById('msg').outerHTML='<div class=alert err>No se pudo cargar <b>data.js</b>. Asegúrate de que esté junto a este HTML y que su nombre sea <b>data.js</b>.</div>'"></script>
+<script>
+(function(){
+  const box = document.getElementById('msg');
+  if(!window.PROD_DATA){
+    box.className='alert err';
+    box.innerHTML='Se cargó <b>config.js</b>, pero <b>window.PROD_DATA</b> no está definido. Revisa que <b>data.js</b> empiece con <code>window.PROD_DATA = {{...}};</code>';
+    return;
+  }
+  const len = Array.isArray(window.PROD_DATA.partes) ? window.PROD_DATA.partes.length : 0;
+  if(!len){
+    box.className='alert err';
+    box.innerHTML='Se cargó <b>data.js</b> pero <code>partes</code> está vacío. Revisa que el archivo contenga los NPs.';
+  }else{
+    box.className='alert ok';
+    box.innerHTML='OK: <b>'+len+'</b> NPs cargados desde <b>data.js</b>.';
+  }
+})();
+</script>
+</body>
+</html>
